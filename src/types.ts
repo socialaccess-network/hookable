@@ -7,14 +7,15 @@ export type HookableClass<H extends Hookable> = ClassType<
 	typeof Hookable
 >
 
-export interface HookContext<V> extends Record<string, any> {
+export interface HookContext<T, V> extends Record<string, any> {
+	reciever: T
 	value: V
 	stop(): void
 }
 
 export type HookFunc<T, V> = (
 	this: T,
-	context: HookContext<V>,
+	context: HookContext<T, V>,
 ) => void | undefined
 
 export type HookLevelMap = Map<number, Set<FunctionType>>

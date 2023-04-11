@@ -1,6 +1,12 @@
 import { FunctionType } from '@michealpearce/utils'
 import { Hookable, NotHookable } from './Hookable'
-import { HookContainer, HookFunc, HookLevelMap, HookableClass } from './types'
+import {
+	HookContainer,
+	HookContext,
+	HookFunc,
+	HookLevelMap,
+	HookableClass,
+} from './types'
 
 const globalHooks: HookContainer = new Map()
 
@@ -73,7 +79,8 @@ function runHook(
 	if (!sorted.length) return value
 
 	let stopped = false
-	const context = {
+	const context: HookContext<any, any> = {
+		reciever,
 		value,
 		stop() {
 			stopped = true
