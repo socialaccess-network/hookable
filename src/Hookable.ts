@@ -9,6 +9,6 @@ export class Hookable {
 	static [NotHookable]?: any[]
 
 	constructor() {
-		return createHookable(this, new.target)
+		return createHookable(this, new.target, new.target[Hooks])
 	}
 }
