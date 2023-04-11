@@ -20,3 +20,4 @@ export type HookFunc<T, V> = (
 export type HookLevelMap = Map<number, Set<FunctionType>>
 export type HookPropMap = Map<any, HookLevelMap>
 export type HookTypeMap = Map<string, HookPropMap>
+export type HookContainer = Map<HookableClass<any>, HookTypeMap>

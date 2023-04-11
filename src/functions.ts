@@ -1,13 +1,16 @@
 import { FunctionType } from '@michealpearce/utils'
 import { Hookable, NotHookable } from './Hookable'
-import { HookFunc, HookLevelMap, HookTypeMap, HookableClass } from './types'
+import { HookContainer, HookFunc, HookLevelMap, HookableClass } from './types'
 
-const globalHooks = new Map<HookableClass<any>, HookTypeMap>()
+const globalHooks: HookContainer = new Map()
 
-export function hookTo<H extends Hookable>(HC: HookableClass<H>) {
+export function hookTo<H extends Hookable>(
+	HC: HookableClass<H>,
+	container: HookContainer = globalHooks,
+) {
 	function add(type: string, key: any, hook: FunctionType, level = 10) {
-		const typeHooks = globalHooks.get(HC) || new Map()
-		globalHooks.set(HC, typeHooks)
+		const typeHooks = container.get(HC) || new Map()
+		container.set(HC, typeHooks)
 
 		const propHooks = typeHooks.get(type) || new Map()
 		typeHooks.set(type, propHooks)
@@ -36,21 +39,23 @@ export function hookTo<H extends Hookable>(HC: HookableClass<H>) {
 export function createHookable<H extends Hookable>(
 	target: H,
 	HC: HookableClass<H>,
+	container: HookContainer = globalHooks,
 ): H {
 	return new Proxy(target, {
 		get(target, key, reciever) {
 			let value = Reflect.get(target, key, reciever)
 			if (typeof value === 'function') value = value.bind(reciever)
-			return runHook(HC, 'get', key, value, reciever)
+			return runHook(container, HC, 'get', key, value, reciever)
 		},
 		set(target, key, value, reciever) {
-			value = runHook(HC, 'set', key, value, reciever)
+			value = runHook(container, HC, 'set', key, value, reciever)
 			return Reflect.set(target, key, value, reciever)
 		},
 	})
 }
 
 function runHook(
+	container: HookContainer,
 	HC: HookableClass<any>,
 	type: string,
 	key: any,
@@ -59,7 +64,7 @@ function runHook(
 ) {
 	if (HC[NotHookable]?.includes(key)) return value
 
-	const hooks = getHooks(HC, type, key)
+	const hooks = getHooks(container, HC, type, key)
 	const sorted = Array.from(hooks)
 		.sort(([a], [b]) => a - b)
 		.flatMap(([, hks]) => Array.from(hks))
@@ -81,6 +86,7 @@ function runHook(
 }
 
 function getHooks(
+	container: HookContainer,
 	HC: HookableClass<any>,
 	type: string,
 	key: any,
@@ -89,7 +95,7 @@ function getHooks(
 	const proto = Reflect.getPrototypeOf(HC) as HookableClass<any> | null
 
 	if (proto) {
-		const parentHooks = getHooks(proto, type, key)
+		const parentHooks = getHooks(container, proto, type, key)
 		for (const [level, hks] of parentHooks) {
 			if (!hooks.has(level)) hooks.set(level, new Set(hks))
 			else {
@@ -99,7 +105,7 @@ function getHooks(
 		}
 	}
 
-	const typeHooks = globalHooks.get(HC)
+	const typeHooks = container.get(HC)
 	if (!typeHooks) return hooks
 
 	const propHooks = typeHooks.get(type)
