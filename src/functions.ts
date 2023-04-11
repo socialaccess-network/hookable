@@ -1,13 +1,11 @@
 import { FunctionType } from '@michealpearce/utils'
-import { Hookable, NotHookable } from './Hookable'
+import { Hookable, Hooks, NotHookable } from './Hookable'
 import { HookContainer, HookFunc, HookLevelMap, HookableClass } from './types'
 
-const globalHooks: HookContainer = new Map()
+export function hookTo<H extends Hookable>(HC: HookableClass<H>) {
+	if (!HC[Hooks]) HC[Hooks] = new Map()
+	const container = HC[Hooks]
 
-export function hookTo<H extends Hookable>(
-	HC: HookableClass<H>,
-	container: HookContainer = globalHooks,
-) {
 	function add(type: string, key: any, hook: FunctionType, level = 10) {
 		const typeHooks = container.get(HC) || new Map()
 		container.set(HC, typeHooks)
@@ -39,8 +37,10 @@ export function hookTo<H extends Hookable>(
 export function createHookable<H extends Hookable>(
 	target: H,
 	HC: HookableClass<H>,
-	container: HookContainer = globalHooks,
 ): H {
+	if (!HC[Hooks]) HC[Hooks] = new Map()
+	const container = HC[Hooks]
+
 	return new Proxy(target, {
 		get(target, key, reciever) {
 			let value = Reflect.get(target, key, reciever)
