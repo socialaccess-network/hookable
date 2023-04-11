@@ -8,18 +8,19 @@ export function hookTo<H extends Hookable>(
 	HC: HookableClass<H>,
 	container: HookContainer = globalHooks,
 ) {
+	if (HC === Hookable) throw new Error('do not hook the Hookable class')
 	function add(type: string, key: any, hook: FunctionType, level = 10) {
-		const typeHooks = container.get(HC) || new Map()
-		container.set(HC, typeHooks)
+		if (!container.has(HC)) container.set(HC, new Map())
+		const typeHooks = container.get(HC)!
 
-		const propHooks = typeHooks.get(type) || new Map()
-		typeHooks.set(type, propHooks)
+		if (!typeHooks.has(type)) typeHooks.set(type, new Map())
+		const propHooks = typeHooks.get(type)!
 
-		const levelHooks = propHooks.get(key) || new Map()
-		propHooks.set(key, levelHooks)
+		if (!propHooks.has(key)) propHooks.set(key, new Map())
+		const levelHooks = propHooks.get(key)!
 
-		const hooks = levelHooks.get(level) || new Set()
-		levelHooks.set(level, hooks)
+		if (!levelHooks.has(level)) levelHooks.set(level, new Set())
+		const hooks = levelHooks.get(level)!
 
 		hooks.add(hook)
 
@@ -41,6 +42,7 @@ export function createHookable<H extends Hookable>(
 	HC: HookableClass<H>,
 	container: HookContainer = globalHooks,
 ): H {
+	if (HC === Hookable) throw new Error('do not hook the Hookable class')
 	return new Proxy(target, {
 		get(target, key, reciever) {
 			let value = Reflect.get(target, key, reciever)
