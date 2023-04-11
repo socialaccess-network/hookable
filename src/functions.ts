@@ -1,5 +1,5 @@
 import { FunctionType } from '@michealpearce/utils'
-import { Hookable } from './Hookable'
+import { Hookable, NotHookable } from './Hookable'
 import { HookFunc, HookLevelMap, HookTypeMap, HookableClass } from './types'
 
 const globalHooks = new Map<HookableClass<any>, HookTypeMap>()
@@ -57,6 +57,8 @@ function runHook(
 	value: any,
 	reciever: any,
 ) {
+	if (HC[NotHookable]?.includes(key)) return value
+
 	const hooks = getHooks(HC, type, key)
 	const sorted = Array.from(hooks)
 		.sort(([a], [b]) => a - b)

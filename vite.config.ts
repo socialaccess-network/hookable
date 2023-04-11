@@ -1,6 +1,14 @@
 import { defineConfig } from 'vite'
+import 'vitest/config'
 
 export default defineConfig({
+	test: {
+		includeSource: ['src/**/*.test.ts'],
+		coverage: {
+			// provider: 'istanbul',
+		},
+	},
+
 	build: {
 		lib: {
 			entry: 'src/index.ts',
