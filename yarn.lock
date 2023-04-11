@@ -193,9 +193,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@san-net/hookable@workspace:.":
+"@sa-net/hookable@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@san-net/hookable@workspace:."
+  resolution: "@sa-net/hookable@workspace:."
   dependencies:
     "@michealpearce/utils": ^0.0.14
     typescript: ^5.0.4
