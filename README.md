@@ -81,10 +81,12 @@ If you want to stop the execution of a hook, you can call `context.stop()`.
 ```typescript
 const hook = hookTo(MyClass)
 
+// does not run because the previous hook stops execution
 hook.get('greeting', (context) => {
 	context.value = `${context.value},`
-}) // runs second
+})
 
+// runs first
 hook.get(
 	'greeting',
 	(context) => {
@@ -92,7 +94,7 @@ hook.get(
 		context.stop()
 	},
 	0,
-) // runs first
+)
 
 const myClass = new MyClass()
 console.log(myClass.greeting) // Hello!
