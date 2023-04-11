@@ -1,5 +1,5 @@
 import { FunctionType } from '@michealpearce/utils'
-import { Hookable, Hooks, NotHookable } from './Hookable'
+import { Hookable, NotHookable } from './Hookable'
 import { HookContainer, HookFunc, HookLevelMap, HookableClass } from './types'
 
 const globalHooks: HookContainer = new Map()
