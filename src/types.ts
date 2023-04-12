@@ -1,4 +1,4 @@
-import { ClassType, FunctionType, ObjectMethods } from '@michealpearce/utils'
+import { ClassType, FunctionType } from '@michealpearce/utils'
 import { Hookable } from './Hookable'
 
 export type HookableClass<H extends Hookable> = ClassType<
