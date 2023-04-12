@@ -1,4 +1,4 @@
-import { ClassType, FunctionType } from '@michealpearce/utils'
+import { ClassType, FunctionType, ObjectMethods } from '@michealpearce/utils'
 import { Hookable } from './Hookable'
 
 export type HookableClass<H extends Hookable> = ClassType<
@@ -22,3 +22,20 @@ export type HookLevelMap = Map<number, Set<FunctionType>>
 export type HookPropMap = Map<any, HookLevelMap>
 export type HookTypeMap = Map<string, HookPropMap>
 export type HookContainer = Map<HookableClass<any>, HookTypeMap>
+
+type HookParams<T> = T extends FunctionType ? Parameters<T> : never
+type HookReturn<T> = T extends FunctionType
+	? ReturnType<T> extends Promise<any>
+		? void | Promise<void>
+		: void | undefined
+	: never
+
+export type HookBeforeOrAfterFunc<T extends Hookable, K extends keyof T> = (
+	this: T,
+	params: HookParams<T[K]>,
+) => HookReturn<T[K]>
+
+export type HookParamsFunc<T extends Hookable, K extends keyof T> = (
+	this: T,
+	params: HookParams<T[K]>,
+) => HookParams<T[K]>

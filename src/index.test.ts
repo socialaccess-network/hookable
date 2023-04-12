@@ -1,9 +1,12 @@
 import { expect, it } from 'vitest'
 import { Hookable, NotHookable } from './Hookable'
 import { createHookable, hookTo } from './functions'
+import { Hooks } from './Hookable'
 
 it('tests hookable', () => {
 	class Test extends Hookable {
+		static [Hooks] = new Map()
+
 		greeting = 'Hello'
 
 		greet(name: string) {
@@ -57,6 +60,8 @@ it('tests hookable', () => {
 
 it('tests hookable that doesnt extend Hookable class', () => {
 	class Test {
+		static [Hooks] = new Map()
+
 		greeting = 'Hello'
 
 		constructor() {
@@ -80,6 +85,7 @@ it('tests hookable that doesnt extend Hookable class', () => {
 
 it('tests hookable ignored keys', () => {
 	class Test extends Hookable {
+		static [Hooks] = new Map()
 		static [NotHookable] = ['greeting']
 
 		greeting = 'Hello'
@@ -102,6 +108,8 @@ it('tests hookable ignored keys', () => {
 
 it('tests hookable functions', () => {
 	class Test extends Hookable {
+		static [Hooks] = new Map()
+
 		greeting = 'Hello'
 
 		greet(name: string) {
@@ -118,4 +126,57 @@ it('tests hookable functions', () => {
 	})
 
 	expect(test.greet('World')).toBe('Hello World!')
+})
+
+it('tests hookable before and after functions', async () => {
+	let count = 0
+
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		prop = 'value'
+
+		async method() {
+			expect(count).toBe(1)
+			count++
+		}
+	}
+
+	const hook = hookTo(Test)
+
+	hook.before('method', async function () {
+		expect(count).toBe(0)
+		count++
+	})
+
+	hook.after('method', function () {
+		expect(count).toBe(2)
+		count++
+	})
+
+	const test = new Test()
+
+	await test.method()
+	expect(count).toBe(3)
+})
+
+it('tests hookable function params', () => {
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		method(name: string, age: number) {
+			return `${name} is ${age} years old`
+		}
+	}
+
+	const hook = hookTo(Test)
+
+	hook.params('method', ([name, age]) => {
+		console.log('hooked params', name, age)
+		return [`Mr ${name}`, age * 2]
+	})
+
+	const test = new Test()
+
+	expect(test.method('John', 20)).toBe('Mr John is 40 years old')
 })

@@ -11,7 +11,6 @@ export class Hookable {
 	constructor() {
 		if (new.target === Hookable)
 			throw new Error('do not instantiate the Hookable class by itself')
-
-		return createHookable(this, new.target, new.target[Hooks])
+		return createHookable(this, new.target)
 	}
 }

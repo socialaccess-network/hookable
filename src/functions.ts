@@ -1,10 +1,12 @@
-import { FunctionType } from '@michealpearce/utils'
-import { Hookable, NotHookable } from './Hookable'
+import { FunctionType, ObjectMethodNames } from '@michealpearce/utils'
+import { Hookable, Hooks, NotHookable } from './Hookable'
 import {
+	HookBeforeOrAfterFunc,
 	HookContainer,
 	HookContext,
 	HookFunc,
 	HookLevelMap,
+	HookParamsFunc,
 	HookableClass,
 } from './types'
 
@@ -12,9 +14,10 @@ const globalHooks: HookContainer = new Map()
 
 export function hookTo<H extends Hookable>(
 	HC: HookableClass<H>,
-	container: HookContainer = globalHooks,
+	container: HookContainer = HC[Hooks] ?? globalHooks,
 ) {
 	if (HC === Hookable) throw new Error('do not hook the Hookable class')
+
 	function add(type: string, key: any, hook: FunctionType, level = 10) {
 		if (!container.has(HC)) container.set(HC, new Map())
 		const typeHooks = container.get(HC)!
@@ -40,13 +43,74 @@ export function hookTo<H extends Hookable>(
 		set<K extends keyof H>(key: K, hook: HookFunc<H, H[K]>, level?: number) {
 			return add('set', key, hook, level)
 		},
+		before<K extends ObjectMethodNames<H>>(
+			key: K,
+			hook: HookBeforeOrAfterFunc<H, K>,
+			level?: number,
+		) {
+			const handle: HookFunc<H, H[K]> = function (context) {
+				const func = context.value as FunctionType
+				const call: any = (...args: any[]) => {
+					const result = (hook as any).call(this, args)
+
+					if (result instanceof Promise)
+						return result.then(() => func.apply(this, args))
+					else return func.apply(this, args)
+				}
+
+				context.value = call
+			}
+
+			return add('get', key, handle, level)
+		},
+		after<K extends ObjectMethodNames<H>>(
+			key: K,
+			hook: HookBeforeOrAfterFunc<H, K>,
+			level?: number,
+		) {
+			const handle: HookFunc<H, H[K]> = function (context) {
+				const func = context.value as FunctionType
+				const call: any = (...args: any[]) => {
+					const result = func.apply(this, args)
+
+					if (result instanceof Promise)
+						return result.then((res) => {
+							const afterResult = (hook as any).call(this, args)
+
+							if (afterResult instanceof Promise)
+								return afterResult.then(() => res)
+							else return res
+						})
+					else return (hook as any).call(this, args)
+				}
+
+				context.value = call
+			}
+
+			return add('get', key, handle, level)
+		},
+		params<K extends ObjectMethodNames<H>>(
+			key: K,
+			hook: HookParamsFunc<H, K>,
+			level?: number,
+		) {
+			const handle: HookFunc<H, H[K]> = function (context) {
+				const func = context.value as FunctionType
+				const call: any = (...args: any[]) =>
+					func.apply(this, hook.call(this, args as any))
+
+				context.value = call
+			}
+
+			return add('get', key, handle, level)
+		},
 	}
 }
 
 export function createHookable<H extends Hookable>(
 	target: H,
 	HC: HookableClass<H>,
-	container: HookContainer = globalHooks,
+	container: HookContainer = HC[Hooks] ?? globalHooks,
 ): H {
 	if (HC === Hookable) throw new Error('do not hook the Hookable class')
 	return new Proxy(target, {
