@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { Hookable, NotHookable } from './Hookable'
 import { createHookable, hookTo } from './functions'
 import { Hooks } from './Hookable'
+import { sleep } from '@michealpearce/utils'
 
 it('tests hookable', () => {
 	class Test extends Hookable {
@@ -137,27 +138,37 @@ it('tests hookable before and after functions', async () => {
 		prop = 'value'
 
 		async method() {
-			expect(count).toBe(1)
+			expect(count).toBe(2)
 			count++
 		}
 	}
 
 	const hook = hookTo(Test)
 
+	hook.before('method', function () {
+		expect(count).toBe(1)
+		count++
+	})
+
 	hook.before('method', async function () {
 		expect(count).toBe(0)
 		count++
 	})
 
+	hook.after('method', async function () {
+		expect(count).toBe(3)
+		count++
+	})
+
 	hook.after('method', function () {
-		expect(count).toBe(2)
+		expect(count).toBe(4)
 		count++
 	})
 
 	const test = new Test()
 
 	await test.method()
-	expect(count).toBe(3)
+	expect(count).toBe(5)
 })
 
 it('tests hookable function params', () => {
@@ -171,12 +182,150 @@ it('tests hookable function params', () => {
 
 	const hook = hookTo(Test)
 
-	hook.params('method', ([name, age]) => {
-		console.log('hooked params', name, age)
-		return [`Mr ${name}`, age * 2]
-	})
+	hook.params('method', ([name, age]) => [`Mr ${name}`, age * 2])
 
 	const test = new Test()
 
 	expect(test.method('John', 20)).toBe('Mr John is 40 years old')
+})
+
+it('tests hookable function result', async () => {
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		async method(name: string) {
+			return name.length
+		}
+	}
+
+	const hook = hookTo(Test)
+
+	hook.result('method', async (result) => {
+		await sleep(1000)
+		return result + 1
+	})
+
+	hook.result('method', async (result) => {
+		await sleep(1000)
+		return result - 1
+	})
+
+	const test = new Test()
+
+	const result = await test.method('John')
+	expect(result).toBe(4)
+})
+
+it('tests hookable sets', () => {
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		prop = 'hello'
+	}
+
+	const hook = hookTo(Test)
+
+	hook.set('prop', (context) => {
+		context.value = context.value.toUpperCase()
+	})
+
+	const test = new Test()
+
+	test.prop = 'world'
+	expect(test.prop).toBe('WORLD')
+})
+
+it('tests hooking Hookable class directly', () => {
+	let errored = false
+
+	try {
+		hookTo(Hookable)
+	} catch (error) {
+		errored = true
+	}
+
+	expect(errored).toBe(true)
+})
+
+it('tests constructing Hookable class directly', () => {
+	let errored = false
+
+	try {
+		new Hookable()
+	} catch (error) {
+		errored = true
+	}
+
+	expect(errored).toBe(true)
+})
+
+it('tests sync after hooks', () => {
+	let count = 0
+
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		method() {
+			expect(count).toBe(0)
+			count++
+		}
+	}
+
+	const hook = hookTo(Test)
+
+	hook.after('method', () => {
+		expect(count).toBe(1)
+		count++
+	})
+
+	hook.result('method', () => {
+		expect(count).toBe(2)
+		count++
+	})
+
+	const test = new Test()
+
+	test.method()
+	expect(count).toBe(3)
+})
+
+it('tests calling createHookable on Hookable directly', () => {
+	let errored = false
+
+	try {
+		createHookable(new (class {})(), Hookable)
+	} catch (error) {
+		errored = true
+	}
+
+	expect(errored).toBe(true)
+})
+
+it('tests extending hookables', () => {
+	class Test extends Hookable {
+		static [Hooks] = new Map()
+
+		prop = 'hello'
+	}
+
+	class Test2 extends Test {
+		prop = 'world'
+	}
+
+	class Test3 extends Test2 {}
+
+	const testHook = hookTo(Test)
+	const test2Hook = hookTo(Test2)
+
+	testHook.get('prop', (context) => {
+		context.value = context.value.toUpperCase()
+	})
+
+	test2Hook.get('prop', (context) => {
+		context.value = context.value.toLowerCase()
+	})
+
+	const test = new Test3()
+
+	expect(test.prop).toBe('world')
 })

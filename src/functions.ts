@@ -7,6 +7,7 @@ import {
 	HookFunc,
 	HookLevelMap,
 	HookParamsFunc,
+	HookResultFunc,
 	HookableClass,
 } from './types'
 
@@ -42,6 +43,21 @@ export function hookTo<H extends Hookable>(
 		},
 		set<K extends keyof H>(key: K, hook: HookFunc<H, H[K]>, level?: number) {
 			return add('set', key, hook, level)
+		},
+		params<K extends ObjectMethodNames<H>>(
+			key: K,
+			hook: HookParamsFunc<H, K>,
+			level?: number,
+		) {
+			const handle: HookFunc<H, H[K]> = function (context) {
+				const func = context.value as FunctionType
+				const call: any = (...args: any[]) =>
+					func.apply(this, hook.call(this, args as any))
+
+				context.value = call
+			}
+
+			return add('get', key, handle, level)
 		},
 		before<K extends ObjectMethodNames<H>>(
 			key: K,
@@ -89,15 +105,20 @@ export function hookTo<H extends Hookable>(
 
 			return add('get', key, handle, level)
 		},
-		params<K extends ObjectMethodNames<H>>(
+		result<K extends ObjectMethodNames<H>>(
 			key: K,
-			hook: HookParamsFunc<H, K>,
+			hook: HookResultFunc<H, K>,
 			level?: number,
 		) {
 			const handle: HookFunc<H, H[K]> = function (context) {
 				const func = context.value as FunctionType
-				const call: any = (...args: any[]) =>
-					func.apply(this, hook.call(this, args as any))
+				const call: any = (...params: any) => {
+					const result = func.apply(this, params)
+
+					if (result instanceof Promise)
+						return result.then((res) => hook.call(this, res, params))
+					else return hook.call(this, result, params)
+				}
 
 				context.value = call
 			}

@@ -45,6 +45,20 @@ const myClass = new MyClass()
 console.log(myClass.greet('World')) // Hello, World!
 ```
 
+Classes can be hooked into without extending `Hookable` by returning the result of `createHookable` from the class constructor. This is useful if you want to create a hookable but want your class to extend another class besides `Hookable`.
+
+```typescript
+import { createHookable, hookTo } from '@sa-net/hookable'
+
+class MyClass {
+	constructor() {
+		return createHookable(this, new.target)
+	}
+}
+
+const hook = hookTo(MyClass)
+```
+
 ### Priorities
 
 Hooks can be given a priority to control the order in which they are called. The default priority is `10`. Hooks with a lower priority are called first.
@@ -137,20 +151,4 @@ class MyClass extends Hookable {
 		return `${this.greeting} ${name}`
 	}
 }
-```
-
-## Advanced Usage
-
-Classes can be hooked into without extending `Hookable` by returning the result of `createHookable` from the class constructor. This is useful if you want to create a hookable but want you class to extends another class besides `Hookable`.
-
-```typescript
-import { createHookable, hookTo } from '@sa-net/hookable'
-
-class MyClass {
-	constructor() {
-		return createHookable(this, new.target)
-	}
-}
-
-const hook = hookTo(MyClass)
 ```

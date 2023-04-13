@@ -24,6 +24,13 @@ export type HookTypeMap = Map<string, HookPropMap>
 export type HookContainer = Map<HookableClass<any>, HookTypeMap>
 
 type HookParams<T> = T extends FunctionType ? Parameters<T> : never
+type HookResult<T> = T extends FunctionType ? Awaited<ReturnType<T>> : never
+type HookResultReturn<T> = T extends FunctionType
+	? ReturnType<T> extends Promise<any>
+		? ReturnType<T> | Awaited<ReturnType<T>>
+		: ReturnType<T>
+	: never
+
 type HookReturn<T> = T extends FunctionType
 	? ReturnType<T> extends Promise<any>
 		? void | Promise<void>
@@ -39,3 +46,9 @@ export type HookParamsFunc<T extends Hookable, K extends keyof T> = (
 	this: T,
 	params: HookParams<T[K]>,
 ) => HookParams<T[K]>
+
+export type HookResultFunc<T extends Hookable, K extends keyof T> = (
+	this: T,
+	result: HookResult<T[K]>,
+	params: HookParams<T[K]>,
+) => HookResultReturn<T[K]>
