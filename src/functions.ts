@@ -13,13 +13,14 @@ import {
 
 const globalHooks: HookContainer = new Map()
 
-export function hookTo<H extends Hookable>(
-	HC: HookableClass<H>,
-	container: HookContainer = HC[Hooks] ?? globalHooks,
-) {
+export function hookTo<H extends Hookable>(HC: HookableClass<H>) {
 	if (HC === Hookable) throw new Error('do not hook the Hookable class')
 
+	const getContainer = () => HC[Hooks] ?? globalHooks
+
 	function add(type: string, key: any, hook: FunctionType, level = 10) {
+		const container = getContainer()
+
 		if (!container.has(HC)) container.set(HC, new Map())
 		const typeHooks = container.get(HC)!
 
@@ -131,24 +132,22 @@ export function hookTo<H extends Hookable>(
 export function createHookable<H extends Hookable>(
 	target: H,
 	HC: HookableClass<H>,
-	container: HookContainer = HC[Hooks] ?? globalHooks,
 ): H {
 	if (HC === Hookable) throw new Error('do not hook the Hookable class')
 	return new Proxy(target, {
 		get(target, key, reciever) {
 			let value = Reflect.get(target, key, reciever)
 			if (typeof value === 'function') value = value.bind(reciever)
-			return runHook(container, HC, 'get', key, value, reciever)
+			return runHook(HC, 'get', key, value, reciever)
 		},
 		set(target, key, value, reciever) {
-			value = runHook(container, HC, 'set', key, value, reciever)
+			value = runHook(HC, 'set', key, value, reciever)
 			return Reflect.set(target, key, value, reciever)
 		},
 	})
 }
 
 function runHook(
-	container: HookContainer,
 	HC: HookableClass<any>,
 	type: string,
 	key: any,
@@ -157,6 +156,7 @@ function runHook(
 ) {
 	if (HC[NotHookable]?.includes(key)) return value
 
+	const container = HC[Hooks] ?? globalHooks
 	const hooks = getHooks(container, HC, type, key)
 	const sorted = Array.from(hooks)
 		.sort(([a], [b]) => a - b)
