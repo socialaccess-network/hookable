@@ -1,3 +1,4 @@
 export * from './types'
-export * from './functions'
 export * from './Hookable'
+export * from './Hook'
+export * from './functions'

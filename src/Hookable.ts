@@ -1,16 +1,17 @@
-import { createHookable } from './functions'
-import { HookContainer } from './types'
+import { ClassType } from '@sa-net/utils'
+import { hookables, hookable } from './functions'
+import { Hook } from './Hook'
 
-export const Hooks = Symbol('Hooks')
-export const NotHookable = Symbol('NotHookable')
+export const HookableSymbol = Symbol('Hookable')
 
-export class Hookable {
-	static [Hooks]?: HookContainer
-	static [NotHookable]?: any[]
+export abstract class Hookable {
+	static hookables = hookables;
 
-	constructor() {
-		if (new.target === Hookable)
-			throw new Error('do not instantiate the Hookable class by itself')
-		return createHookable(this, new.target)
+	[HookableSymbol] = true as const
+
+	constructor(hook = new Hook(new.target as any)) {
+		return hookable(this, hook)
 	}
 }
+
+export type HookableClass<H extends Hookable> = ClassType<H>

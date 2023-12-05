@@ -1,20 +1,18 @@
 import { defineConfig } from 'vite'
-import 'vitest/config'
+import dts from 'vite-plugin-dts'
 
 export default defineConfig({
-	test: {
-		includeSource: ['src/**/*.test.ts'],
-		coverage: {
-			// provider: 'istanbul',
-		},
-	},
-
 	build: {
+		emptyOutDir: true,
 		lib: {
-			entry: 'src/index.ts',
-			name: '@san-net/hookable',
+			entry: new URL('./src/index.ts', import.meta.url).pathname,
+			name: '@sa-net/hookable',
+			fileName: format => (format === 'es' ? 'index.mjs' : 'index.cjs'),
 			formats: ['es', 'cjs'],
-			fileName: (format) => (format === 'es' ? 'index.mjs' : 'index.cjs'),
+		},
+		rollupOptions: {
+			external: ['@sa-net/utils'],
 		},
 	},
+	plugins: [dts()],
 })

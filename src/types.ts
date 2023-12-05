@@ -1,54 +1,55 @@
-import { ClassType, FunctionType } from '@michealpearce/utils'
-import { Hookable } from './Hookable'
+import { FunctionType } from '@sa-net/utils'
+import { Hookable, HookableClass } from './Hookable'
 
-export type HookableClass<H extends Hookable> = ClassType<
-	H,
-	any[],
-	typeof Hookable
->
-
-export interface HookContext<T, V> extends Record<string, any> {
-	reciever: T
-	value: V
-	stop(): void
+export type HookContext<Target extends Hookable, Value> = {
+	target: Target
+	value: Value
+	stop: () => void
 }
 
-export type HookFunc<T, V> = (
-	this: T,
-	context: HookContext<T, V>,
-) => void | undefined
+export type HookListener<Target extends Hookable, Value> = (
+	this: Target,
+	context: HookContext<Target, Value>
+) => void
 
-export type HookLevelMap = Map<number, Set<FunctionType>>
-export type HookPropMap = Map<any, HookLevelMap>
-export type HookTypeMap = Map<string, HookPropMap>
-export type HookContainer = Map<HookableClass<any>, HookTypeMap>
+export type HookablePropertyNames<Target extends Hookable> = {
+	[K in keyof Target]: Target[K] extends FunctionType ? never : K
+}[keyof Target]
 
-type HookParams<T> = T extends FunctionType ? Parameters<T> : never
-type HookResult<T> = T extends FunctionType ? Awaited<ReturnType<T>> : never
-type HookResultReturn<T> = T extends FunctionType
-	? ReturnType<T> extends Promise<any>
-		? ReturnType<T> | Awaited<ReturnType<T>>
-		: ReturnType<T>
-	: never
+export type HookableMethodNames<Target extends Hookable> = {
+	[K in keyof Target]: Target[K] extends FunctionType ? K : never
+}[keyof Target]
 
-type HookReturn<T> = T extends FunctionType
-	? ReturnType<T> extends Promise<any>
-		? void | Promise<void>
-		: void | undefined
-	: never
+export type HookableMethods<Target extends Hookable> = {
+	[K in keyof Target]: Target[K] extends FunctionType ? Target[K] : never
+}
 
-export type HookBeforeOrAfterFunc<T extends Hookable, K extends keyof T> = (
-	this: T,
-	params: HookParams<T[K]>,
-) => HookReturn<T[K]>
+export type HookParamsListener<
+	Target extends Hookable,
+	Method extends FunctionType
+> = (this: Target, params: Parameters<Method>) => Parameters<Method>
 
-export type HookParamsFunc<T extends Hookable, K extends keyof T> = (
-	this: T,
-	params: HookParams<T[K]>,
-) => HookParams<T[K]>
+export type HookMethodListener<
+	Target extends Hookable,
+	Method extends FunctionType
+> = (
+	this: Target,
+	method: Method,
+	...args: Parameters<Method>
+) => ReturnType<Method>
 
-export type HookResultFunc<T extends Hookable, K extends keyof T> = (
-	this: T,
-	result: HookResult<T[K]>,
-	params: HookParams<T[K]>,
-) => HookResultReturn<T[K]>
+export type HookResultListener<
+	Target extends Hookable,
+	Method extends FunctionType
+> = (this: Target, result: ReturnType<Method>) => ReturnType<Method>
+
+export type HookPropertyListener<
+	Target extends Hookable,
+	Property extends HookablePropertyNames<Target>
+> = (this: Target, value: Target[Property]) => Target[Property]
+
+export type HookListenerSet = Set<HookListener<any, any>>
+export type HookLevelMap = Map<number, HookListenerSet>
+export type HookMap = Map<any, HookLevelMap>
+export type HookTypeMap = Map<string, HookMap>
+export type HookableMap = Map<HookableClass<any>, HookTypeMap>

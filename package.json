@@ -1,48 +1,31 @@
 {
 	"name": "@sa-net/hookable",
-	"version": "0.0.11",
-	"author": {
-		"name": "SocialAccess Network",
-		"email": "business@socialaccess.network"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/socialaccess-network/hookable.git"
-	},
-	"bugs": {
-		"url": "https://github.com/socialaccess-network/hookable/issues"
-	},
-	"packageManager": "yarn@3.3.0",
+	"version": "1.0.0",
+	"type": "module",
 	"main": "dist/index.cjs",
-	"types": "src/index.ts",
-	"exports": {
-		"./package.json": "./package.json",
-		".": {
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs",
-			"types": "./src/index.ts"
-		}
-	},
-	"files": [
-		"dist",
-		"src",
-		"package.json",
-		"README.md",
-		"LICENSE"
-	],
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
 	"scripts": {
-		"test": "vitest",
-		"coverage": "vitest --coverage & npx http-server coverage",
-		"build": "vitest --run && vite build",
-		"publish": "yarn build && yarn npm publish --access public"
+		"dev": "nodemon",
+		"build": "tsc && vite build",
+		"preview": "vite preview"
+	},
+	"nodemonConfig": {
+		"exec": "vite-node tests/index.ts",
+		"ext": "ts",
+		"watch": [
+			"src"
+		]
 	},
 	"devDependencies": {
-		"@vitest/coverage-c8": "^0.30.1",
-		"typescript": "^5.0.4",
-		"vite": "^4.2.1",
-		"vitest": "^0.30.1"
+		"nodemon": "^3.0.1",
+		"typescript": "^5.2.2",
+		"vite": "^5.0.0",
+		"vite-node": "0.34.6",
+		"vite-plugin-dts": "^3.6.3"
 	},
+	"packageManager": "yarn@4.0.2",
 	"dependencies": {
-		"@michealpearce/utils": "^0.0.14"
+		"@sa-net/utils": "^1.1.0"
 	}
 }

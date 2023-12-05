@@ -1,220 +1,55 @@
-import { FunctionType, ObjectMethodNames } from '@michealpearce/utils'
-import { Hookable, Hooks, NotHookable } from './Hookable'
-import {
-	HookBeforeOrAfterFunc,
-	HookContainer,
-	HookContext,
-	HookFunc,
-	HookLevelMap,
-	HookParamsFunc,
-	HookResultFunc,
-	HookableClass,
-} from './types'
+import { isSymbol, isFunction, ClassType } from '@sa-net/utils'
+import { Hook } from './Hook'
+import { HookableClass, Hookable, HookableSymbol } from './Hookable'
+import { HookTypeMap, HookableMap } from './types'
 
-const globalHooks: HookContainer = new Map()
+export const hookables: HookableMap = new Map<HookableClass<any>, any>()
 
-export function hookTo<H extends Hookable>(HC: HookableClass<H>) {
-	if (HC === Hookable) throw new Error('do not hook the Hookable class')
-
-	const getContainer = () => HC[Hooks] ?? globalHooks
-
-	function add(type: string, key: any, hook: FunctionType, level = 10) {
-		const container = getContainer()
-
-		if (!container.has(HC)) container.set(HC, new Map())
-		const typeHooks = container.get(HC)!
-
-		if (!typeHooks.has(type)) typeHooks.set(type, new Map())
-		const propHooks = typeHooks.get(type)!
-
-		if (!propHooks.has(key)) propHooks.set(key, new Map())
-		const levelHooks = propHooks.get(key)!
-
-		if (!levelHooks.has(level)) levelHooks.set(level, new Set())
-		const hooks = levelHooks.get(level)!
-
-		hooks.add(hook)
-
-		return () => hooks.delete(hook)
-	}
-
-	return {
-		get<K extends keyof H>(key: K, hook: HookFunc<H, H[K]>, level?: number) {
-			return add('get', key, hook, level)
-		},
-		set<K extends keyof H>(key: K, hook: HookFunc<H, H[K]>, level?: number) {
-			return add('set', key, hook, level)
-		},
-		params<K extends ObjectMethodNames<H>>(
-			key: K,
-			hook: HookParamsFunc<H, K>,
-			level?: number,
-		) {
-			const handle: HookFunc<H, H[K]> = function (context) {
-				const func = context.value as FunctionType
-				const call: any = (...args: any[]) =>
-					func.apply(this, hook.call(this, args as any))
-
-				context.value = call
-			}
-
-			return add('get', key, handle, level)
-		},
-		before<K extends ObjectMethodNames<H>>(
-			key: K,
-			hook: HookBeforeOrAfterFunc<H, K>,
-			level?: number,
-		) {
-			const handle: HookFunc<H, H[K]> = function (context) {
-				const func = context.value as FunctionType
-				const call: any = (...args: any[]) => {
-					const result = (hook as any).call(this, args)
-
-					if (result instanceof Promise)
-						return result.then(() => func.apply(this, args))
-					else return func.apply(this, args)
-				}
-
-				context.value = call
-			}
-
-			return add('get', key, handle, level)
-		},
-		after<K extends ObjectMethodNames<H>>(
-			key: K,
-			hook: HookBeforeOrAfterFunc<H, K>,
-			level?: number,
-		) {
-			const handle: HookFunc<H, H[K]> = function (context) {
-				const func = context.value as FunctionType
-				const call: any = (...args: any[]) => {
-					const result = func.apply(this, args)
-
-					if (result instanceof Promise)
-						return result.then((res) => {
-							const afterResult = (hook as any).call(this, args)
-
-							if (afterResult instanceof Promise)
-								return afterResult.then(() => res)
-							else return res
-						})
-					else return (hook as any).call(this, args)
-				}
-
-				context.value = call
-			}
-
-			return add('get', key, handle, level)
-		},
-		result<K extends ObjectMethodNames<H>>(
-			key: K,
-			hook: HookResultFunc<H, K>,
-			level?: number,
-		) {
-			const handle: HookFunc<H, H[K]> = function (context) {
-				const func = context.value as FunctionType
-				const call: any = (...params: any) => {
-					const result = func.apply(this, params)
-
-					if (result instanceof Promise)
-						return result.then((res) => hook.call(this, res, params))
-					else return hook.call(this, result, params)
-				}
-
-				context.value = call
-			}
-
-			return add('get', key, handle, level)
-		},
-	}
+export function getHookMap(target: HookableClass<any>) {
+	if (!hookables.has(target)) hookables.set(target, new Map())
+	return hookables.get(target) as HookTypeMap
 }
 
-export function createHookable<H extends Hookable>(
-	target: H,
-	HC: HookableClass<H>,
-): H {
-	if (HC === Hookable) throw new Error('do not hook the Hookable class')
-	return new Proxy(target, {
-		get(target, key, reciever) {
-			let value = Reflect.get(target, key, reciever)
-			if (typeof value === 'function') value = value.bind(reciever)
-			return runHook(HC, 'get', key, value, reciever)
+export function hookable<Target extends Hookable>(
+	target: Target,
+	hook: Hook<Target>
+) {
+	const proxied: Target = new Proxy(target, {
+		get(target, key: any, receiver) {
+			let value = Reflect.get(target, key, receiver)
+			if (isSymbol(key)) return value
+
+			value = hook.trigger(proxied, key, value, 'get')
+			if (isFunction(value)) {
+				value = hook.trigger(proxied, key, value, 'method')
+				value = hook.trigger(proxied, key, value, 'params')
+				value = hook.trigger(proxied, key, value, 'result')
+			}
+
+			return value
 		},
-		set(target, key, value, reciever) {
-			value = runHook(HC, 'set', key, value, reciever)
-			return Reflect.set(target, key, value, reciever)
+		set(target, key: any, value, receiver) {
+			value = hook.trigger(proxied, key, value, 'set')
+			return Reflect.set(target, key, value, receiver)
 		},
 	})
+
+	return proxied
 }
 
-function runHook(
-	HC: HookableClass<any>,
-	type: string,
-	key: any,
-	value: any,
-	reciever: any,
+export function HookableMixin<T extends ClassType>(
+	target: T,
+	hooks = hookables
 ) {
-	if (HC[NotHookable]?.includes(key)) return value
+	return class extends target {
+		static hookables = hooks;
 
-	const container = HC[Hooks] ?? globalHooks
-	const hooks = getHooks(container, HC, type, key)
-	const sorted = Array.from(hooks)
-		.sort(([a], [b]) => a - b)
-		.flatMap(([, hks]) => Array.from(hks))
-	if (!sorted.length) return value
+		[HookableSymbol] = true as const
 
-	let stopped = false
-	const context: HookContext<any, any> = {
-		reciever,
-		value,
-		stop() {
-			stopped = true
-		},
-	}
-
-	for (const hook of sorted)
-		if (stopped) break
-		else hook.call(reciever, context)
-
-	return context.value
-}
-
-function getHooks(
-	container: HookContainer,
-	HC: HookableClass<any>,
-	type: string,
-	key: any,
-): HookLevelMap {
-	const hooks: HookLevelMap = new Map()
-	const proto = Reflect.getPrototypeOf(HC) as HookableClass<any> | null
-
-	if (proto) {
-		const parentHooks = getHooks(container, proto, type, key)
-		for (const [level, hks] of parentHooks) {
-			if (!hooks.has(level)) hooks.set(level, new Set(hks))
-			else {
-				const hooksSet = hooks.get(level)!
-				for (const hook of hks) hooksSet.add(hook)
-			}
+		constructor(...args: any[]) {
+			super(...args)
+			const hook = new Hook(new.target, getHookMap(new.target))
+			return hookable(this, hook)
 		}
 	}
-
-	const typeHooks = container.get(HC)
-	if (!typeHooks) return hooks
-
-	const propHooks = typeHooks.get(type)
-	if (!propHooks) return hooks
-
-	const levelHooks = propHooks.get(key)
-	if (!levelHooks) return hooks
-
-	for (const [level, hks] of levelHooks) {
-		if (!hooks.has(level)) hooks.set(level, new Set(hks))
-		else {
-			const hooksSet = hooks.get(level)!
-			for (const hook of hks) hooksSet.add(hook)
-		}
-	}
-
-	return hooks
 }
